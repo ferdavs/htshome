@@ -1,0 +1,374 @@
+esp32:
+  board: adafruit_feather_esp32_v2
+  framework: 
+    type: arduino
+    # version: 2.3.6
+
+    
+esphome:
+  name: htshome
+  libraries:
+    - "h2zero/NimBLE-Arduino@1.4.1"
+
+
+# api:
+  # reboot_timeout: 0s
+  # encryption: 
+  #   key: "4fRxdZO/QOPMpMN1NmHiJBMu1mhBpnt4b+QiRog31Gw="
+
+# ota:
+#   platform: esphome
+#   password: !secret ota_password
+
+# wifi:
+#   ssid: !secret wifi_ssid
+#   password: !secret wifi_password
+#   fast_connect: true
+#   reboot_timeout: 0s
+#   ap:
+#     ssid: "HtsHome"
+#     password: "12345678"
+# captive_portal:
+
+logger:
+  baud_rate: 115200
+  
+i2c:
+
+# deep_sleep:
+#   run_duration: 60s
+#   sleep_duration: 4min
+
+# web_server:
+#   version: 2
+#   port: 80
+#   local: True
+#   ota: True
+#   js_include: "./v2/www.js"
+
+
+external_components:
+
+  - source: "./custom_components"
+    components: ["ble_advertiser"]
+
+
+
+
+bme68x_bsec2_i2c:
+  # Default: 0x76 or 0x77
+  address: 0x76
+  temperature_offset: 0
+  model: bme688
+  # Default: static or mobile
+  # iaq_mode: static # currently not working
+  # Default: lp or ulp
+  sample_rate: lp
+  operating_age: 28d
+  # Default: 6h
+  state_save_interval: 1h
+
+# button:
+#   - platform: restart
+#     name: "Restart"
+#   - platform: safe_mode
+#     name: "Restart (Safe Mode)"
+
+sensor:
+  - platform: bme68x_bsec2
+    temperature:
+      name: "Env Temperature"
+      id: "temperature"
+      filters:
+        - median
+    humidity:
+      name: "Env Humidity"
+      id: "humidity"
+      filters:
+        - median
+    pressure:
+      name: "Env Pressure"
+      id: "pressure"
+      icon: "mdi:gauge"
+      filters:
+        - median
+    co2_equivalent:
+      id: co2
+      name: "Env CO2 Equivalent"
+      icon: "mdi:molecule-co2"
+      filters:
+        - median
+    breath_voc_equivalent:
+      id: breath_voc
+      name: "Env bVOC Equivalent"
+      icon: "mdi:molecule"
+      filters:
+        - median
+    # iaq_static:
+    #   name: "IAQ Static"
+    #   id: iaq_static
+    #   icon: "mdi:approximately-equal"
+    #   filters:
+    #     - median
+  
+    iaq_accuracy:
+      id: iaq_accuracy
+      name: "IAQ Status"
+      icon: "mdi:check-circle"
+      filters:
+        - median
+
+    iaq:
+      id: iaq_env
+      name: "IAQ"
+      icon: "mdi:approximately-equal"
+      filters:
+        - median
+        
+    gas_resistance:
+      id: gas_resistance
+      name: "Env Gas Resistance"
+      icon: "mdi:omega"
+      accuracy_decimals: 1
+      unit_of_measurement: "kOhm"
+      filters:
+        - median
+        - lambda: return x / 1000.0;  # Convert Ohm to kOhm
+  
+  - platform: uptime
+    id: uptime_sensor
+    name: Uptime
+    update_interval: 10s
+
+  - platform: pmsa003i
+    id: pm_sensor
+    update_interval: 10s
+    pm_1_0:
+      name: "PM1.0"
+      id: pm_1_0
+    pm_2_5:
+      name: "PM2.5"
+      id: pm_2_5
+    pm_10_0:
+      name: "PM10.0"
+      id: pm_10_0
+    pmc_0_3:
+      id: pmc_0_3
+      name: "PMC >0.3µm"
+    pmc_0_5:
+      id: pmc_0_5
+      name: "PMC >0.5µm"
+    pmc_1_0:
+      id: pmc_1_0
+      name: "PMC >1µm"
+    pmc_2_5:
+      id: pmc_2_5
+      name: "PMC >2.5µm"
+    pmc_5_0:
+      id: pmc_5_0
+      name: "PMC >5µm"
+    pmc_10_0:
+      id: pmc_10_0
+      name: "PMC >10µm"
+
+  # - platform: absolute_humidity
+  #   name: Absolute Humidity
+  #   icon: "mdi:water"
+  #   temperature: temperature
+  #   humidity: humidity
+  #   filters:
+  #     - median
+
+  - platform: adc
+    id: battery_voltage
+    name: "Battery voltage"
+    pin: GPIO35
+    accuracy_decimals: 2
+    update_interval: 10s
+    attenuation: auto
+    filters:
+      - multiply: 2.0  # The voltage divider requires us to multiply by 2
+      - median
+
+  # - platform: wifi_signal
+  #   id: wifi_signal_rssi
+  #   name: "WiFi Signal"
+  #   entity_category: "diagnostic"
+  #   update_interval: 10s
+            
+  - platform: template
+    name: "IAQ with PM"
+    id: iaq_pm_env
+    unit_of_measurement: "IAQ"
+    accuracy_decimals: 0
+    update_interval: 10s
+    lambda: |-
+      // Get PM values
+      float pm1 = id(pm_1_0).state;
+      float pm2 = id(pm_2_5).state;
+      float pm10 = id(pm_10_0).state;
+
+      // Define weights
+      float PM1_weight = 0.2;
+      float PM2_weight = 0.5;
+      float PM10_weight = 0.1;
+
+      // Calculate penalty based on max weighted PM value
+      float penalty = fmax(PM1_weight * pm1, fmax(PM2_weight * pm2, PM10_weight * pm10));
+
+      // Get the base IAQ value
+      float base_iaq = id(iaq_env).state;
+
+      // Adjust the IAQ value
+      float iaq_with_pm = base_iaq + penalty;
+
+      // Ensure IAQ stays within the 0 to 500 range
+      if (iaq_with_pm > 500) {
+        iaq_with_pm = 500;
+      } else if (iaq_with_pm < 0) {
+        iaq_with_pm = 0;
+      }
+
+      return iaq_with_pm;
+
+  - platform: template
+    name: "IAQ only PM2.5"
+    id: iaq_pm
+    unit_of_measurement: "IAQ"
+    accuracy_decimals: 0
+    update_interval: 10s
+    lambda: |-
+      // Get PM values
+      float pm2_5 = id(pm_2_5).state;
+
+      // Compute AQI based on PM2.5 (EPA AQI formula for PM2.5, simplified)
+      float aqi_pm25;
+      if (pm2_5 <= 12.0) {
+        aqi_pm25 = (50.0 / 12.0) * pm2_5;  // Good
+      } else if (pm2_5 <= 35.4) {
+        aqi_pm25 = 50.0 + ((100.0 - 50.0) / (35.4 - 12.1)) * (pm2_5 - 12.1);  // Moderate
+      } else if (pm2_5 <= 55.4) {
+        aqi_pm25 = 100.0 + ((150.0 - 100.0) / (55.4 - 35.5)) * (pm2_5 - 35.5);  // Unhealthy for Sensitive Groups
+      } else if (pm2_5 <= 150.4) {
+        aqi_pm25 = 150.0 + ((200.0 - 150.0) / (150.4 - 55.5)) * (pm2_5 - 55.5);  // Unhealthy
+      } else if (pm2_5 <= 250.4) {
+        aqi_pm25 = 200.0 + ((300.0 - 200.0) / (250.4 - 150.5)) * (pm2_5 - 150.5);  // Very Unhealthy
+      } else {
+        aqi_pm25 = 300.0 + ((500.0 - 300.0) / (500.4 - 250.5)) * (pm2_5 - 250.5);  // Hazardous
+      }
+
+      return aqi_pm25;
+
+  - platform: template
+    name: "IAQ Averaged"
+    id: iaq_averaged
+    unit_of_measurement: "IAQ"
+    accuracy_decimals: 0
+    update_interval: 10s
+    lambda: |-
+      // Get the base IAQ and PM-based IAQ values
+      float base_iaq = id(iaq_env).state;
+      float pm_iaq = id(iaq_pm).state;
+
+      // Define weights for the average
+      float weight_base = 0.4;  // Base IAQ 
+      float weight_pm = 0.6;    // PM-based IAQ
+
+      // Calculate weighted average IAQ
+      float averaged_iaq = (weight_base * base_iaq + weight_pm * pm_iaq) / (weight_base + weight_pm);
+
+      // Ensure IAQ stays within the 0 to 500 range
+      if (averaged_iaq > 500) {
+        averaged_iaq = 500;
+      } else if (averaged_iaq < 0) {
+        averaged_iaq = 0;
+      }
+
+      return averaged_iaq;
+
+ble_advertiser:
+  temperature: temperature
+  humidity: humidity
+  pressure: pressure
+  co2: co2
+  pm1_0: pm_1_0
+  pm2_5: pm_2_5
+  pm10_0: pm_10_0
+  iaq: iaq_averaged
+  battery: battery_voltage
+
+text_sensor:
+  # - platform: bme68x_bsec
+  #   iaq_accuracy:
+  #     name: "IAQ Accuracy"
+
+  # - platform: wifi_info
+  #   ip_address:
+  #     name: "WiFi IP Address"
+  #     icon: "mdi:ip"
+  #   ssid:
+  #     name: "WiFi SSID"
+  #     icon: "mdi:wifi"
+  #   bssid:
+  #     name: "WiFi BSSID"
+  #     icon: "mdi:access-point"
+  #   mac_address:
+  #     name: "WiFi MAC Address"
+  #     icon: "mdi:access-point-network"
+
+  # - platform: template
+  #   name: "IAQ Classification"
+  #   icon: "mdi:checkbox-marked-circle-outline"
+  #   lambda: |-
+  #     if ( int(id(averaged_iaq).state) <= 50) {
+  #       return {"Excellent"};
+  #     }
+  #     else if (int(id(averaged_iaq).state) >= 51 && int(id(averaged_iaq).state) <= 100) {
+  #       return {"Good"};
+  #     }
+  #     else if (int(id(averaged_iaq).state) >= 101 && int(id(averaged_iaq).state) <= 150) {
+  #       return {"Lightly polluted"};
+  #     }
+  #     else if (int(id(averaged_iaq).state) >= 151 && int(id(averaged_iaq).state) <= 200) {
+  #       return {"Moderately polluted"};
+  #     }
+  #     else if (int(id(averaged_iaq).state) >= 201 && int(id(averaged_iaq).state) <= 250) {
+  #       return {"Heavily polluted"};
+  #     }
+  #     else if (int(id(averaged_iaq).state) >= 251 && int(id(averaged_iaq).state) <= 350) {
+  #       return {"Severely polluted"};
+  #     }
+  #     else if (int(id(averaged_iaq).state) >= 351) {
+  #       return {"Extremely polluted"};
+  #     }
+  #     else {
+  #       return {"error"};
+  #     }
+  
+
+# udp:
+#   update_interval: 10s
+#   sensors:
+#     - uptime_sensor
+#     - gas_resistance
+#     - wifi_signal_rssi
+#     - temperature
+#     - humidity
+#     - pressure
+#     - co2
+#     - breath_voc
+#     - pm_1_0
+#     - pm_2_5
+#     - pm_10_0
+#     - pmc_0_3
+#     - pmc_0_5
+#     - pmc_1_0
+#     - pmc_2_5
+#     - pmc_5_0
+#     - pmc_10_0
+#     - battery_voltage
+#     - iaq_accuracy
+#     - iaq_env
+#     - iaq_pm_env
+#     - iaq_pm
+#     - iaq_averaged
