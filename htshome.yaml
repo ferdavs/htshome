@@ -248,9 +248,9 @@ sensor:
       return averaged_iaq;
 
 ble_advertiser:
-  update_interval: 1s
-  min_interval: 800
-  max_interval: 1600
+  update_interval: 5s
+  min_interval: 1600
+  max_interval: 3200
   device_name: "HTS-HOME"
   power_level: 9
   sensors:
@@ -286,9 +286,13 @@ ble_advertiser:
       label: "IAQ"
       unit: ""
       precision: 0
-    - id: battery_voltage
-      label: "Battery"
-      unit: "V"
-      precision: 2
+    - id: uptime_sensor
+      label: Uptime
+      unit: s
+      precision: 0
+    # - id: battery_voltage
+    #   label: "Battery"
+    #   unit: "V"
+    #   precision: 2
 
 
