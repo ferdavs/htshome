@@ -2,7 +2,6 @@ esp32:
   board: adafruit_feather_esp32_v2
   framework: 
     type: arduino
-    # version: 2.3.6
 
     
 esphome:
@@ -11,10 +10,6 @@ esphome:
     - "h2zero/NimBLE-Arduino@1.4.1"
 
 
-# api:
-  # reboot_timeout: 0s
-  # encryption: 
-  #   key: "4fRxdZO/QOPMpMN1NmHiJBMu1mhBpnt4b+QiRog31Gw="
 
 # ota:
 #   platform: esphome
@@ -196,40 +191,6 @@ sensor:
   #   entity_category: "diagnostic"
   #   update_interval: 10s
             
-  - platform: template
-    name: "IAQ with PM"
-    id: iaq_pm_env
-    unit_of_measurement: "IAQ"
-    accuracy_decimals: 0
-    update_interval: 10s
-    lambda: |-
-      // Get PM values
-      float pm1 = id(pm_1_0).state;
-      float pm2 = id(pm_2_5).state;
-      float pm10 = id(pm_10_0).state;
-
-      // Define weights
-      float PM1_weight = 0.2;
-      float PM2_weight = 0.5;
-      float PM10_weight = 0.1;
-
-      // Calculate penalty based on max weighted PM value
-      float penalty = fmax(PM1_weight * pm1, fmax(PM2_weight * pm2, PM10_weight * pm10));
-
-      // Get the base IAQ value
-      float base_iaq = id(iaq_env).state;
-
-      // Adjust the IAQ value
-      float iaq_with_pm = base_iaq + penalty;
-
-      // Ensure IAQ stays within the 0 to 500 range
-      if (iaq_with_pm > 500) {
-        iaq_with_pm = 500;
-      } else if (iaq_with_pm < 0) {
-        iaq_with_pm = 0;
-      }
-
-      return iaq_with_pm;
 
   - platform: template
     name: "IAQ only PM2.5"
@@ -297,78 +258,4 @@ ble_advertiser:
   iaq: iaq_averaged
   battery: battery_voltage
 
-text_sensor:
-  # - platform: bme68x_bsec
-  #   iaq_accuracy:
-  #     name: "IAQ Accuracy"
 
-  # - platform: wifi_info
-  #   ip_address:
-  #     name: "WiFi IP Address"
-  #     icon: "mdi:ip"
-  #   ssid:
-  #     name: "WiFi SSID"
-  #     icon: "mdi:wifi"
-  #   bssid:
-  #     name: "WiFi BSSID"
-  #     icon: "mdi:access-point"
-  #   mac_address:
-  #     name: "WiFi MAC Address"
-  #     icon: "mdi:access-point-network"
-
-  # - platform: template
-  #   name: "IAQ Classification"
-  #   icon: "mdi:checkbox-marked-circle-outline"
-  #   lambda: |-
-  #     if ( int(id(averaged_iaq).state) <= 50) {
-  #       return {"Excellent"};
-  #     }
-  #     else if (int(id(averaged_iaq).state) >= 51 && int(id(averaged_iaq).state) <= 100) {
-  #       return {"Good"};
-  #     }
-  #     else if (int(id(averaged_iaq).state) >= 101 && int(id(averaged_iaq).state) <= 150) {
-  #       return {"Lightly polluted"};
-  #     }
-  #     else if (int(id(averaged_iaq).state) >= 151 && int(id(averaged_iaq).state) <= 200) {
-  #       return {"Moderately polluted"};
-  #     }
-  #     else if (int(id(averaged_iaq).state) >= 201 && int(id(averaged_iaq).state) <= 250) {
-  #       return {"Heavily polluted"};
-  #     }
-  #     else if (int(id(averaged_iaq).state) >= 251 && int(id(averaged_iaq).state) <= 350) {
-  #       return {"Severely polluted"};
-  #     }
-  #     else if (int(id(averaged_iaq).state) >= 351) {
-  #       return {"Extremely polluted"};
-  #     }
-  #     else {
-  #       return {"error"};
-  #     }
-  
-
-# udp:
-#   update_interval: 10s
-#   sensors:
-#     - uptime_sensor
-#     - gas_resistance
-#     - wifi_signal_rssi
-#     - temperature
-#     - humidity
-#     - pressure
-#     - co2
-#     - breath_voc
-#     - pm_1_0
-#     - pm_2_5
-#     - pm_10_0
-#     - pmc_0_3
-#     - pmc_0_5
-#     - pmc_1_0
-#     - pmc_2_5
-#     - pmc_5_0
-#     - pmc_10_0
-#     - battery_voltage
-#     - iaq_accuracy
-#     - iaq_env
-#     - iaq_pm_env
-#     - iaq_pm
-#     - iaq_averaged

@@ -78,13 +78,33 @@ void BLEAdvertiser::loop() {
 
 void BLEAdvertiser::dump_config() {
   ESP_LOGCONFIG(TAG, "BLEAdvertiserComponent:");
-  ESP_LOGCONFIG(TAG, "  Temperature: %s", temperature_->get_name().c_str());
-  ESP_LOGCONFIG(TAG, "  Humidity: %s", humidity_->get_name().c_str());
-  ESP_LOGCONFIG(TAG, "  Pressure: %s", pressure_->get_name().c_str());
-  ESP_LOGCONFIG(TAG, "  CO2: %s", co2_->get_name().c_str());
-  ESP_LOGCONFIG(TAG, "  PM2.5: %s", pm2_5_->get_name().c_str());
-  ESP_LOGCONFIG(TAG, "  IAQ: %s", iaq_->get_name().c_str());
-  ESP_LOGCONFIG(TAG, "  Battery: %s", battery_->get_name().c_str());
+  if (temperature_) {
+    ESP_LOGCONFIG(TAG, "  Temperature: %s", temperature_->get_name().c_str());
+  }
+  if (humidity_) {
+    ESP_LOGCONFIG(TAG, "  Humidity: %s", humidity_->get_name().c_str());
+  }
+  if (pressure_) {
+    ESP_LOGCONFIG(TAG, "  Pressure: %s", pressure_->get_name().c_str());
+  }
+  if (co2_) {
+    ESP_LOGCONFIG(TAG, "  CO2: %s", co2_->get_name().c_str());
+  }
+  if (pm1_0_) {
+    ESP_LOGCONFIG(TAG, "  PM1.0: %s", pm1_0_->get_name().c_str());
+  }
+  if (pm2_5_) {
+    ESP_LOGCONFIG(TAG, "  PM2.5: %s", pm2_5_->get_name().c_str());
+  }
+  if (pm10_0_) {
+    ESP_LOGCONFIG(TAG, "  PM10.0: %s", pm10_0_->get_name().c_str());
+  }
+  if (iaq_) {
+    ESP_LOGCONFIG(TAG, "  IAQ: %s", iaq_->get_name().c_str());
+  }
+  if (battery_) {
+    ESP_LOGCONFIG(TAG, "  Battery: %s", battery_->get_name().c_str());
+  }
   ESP_LOGCONFIG(TAG, "  Bluetooth MAC Address: %s", NimBLEDevice::getAddress().toString().c_str());
 }
 
