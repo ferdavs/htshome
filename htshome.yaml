@@ -248,14 +248,51 @@ sensor:
       return averaged_iaq;
 
 ble_advertiser:
-  temperature: temperature
-  humidity: humidity
-  pressure: pressure
-  co2: co2
-  pm1_0: pm_1_0
-  pm2_5: pm_2_5
-  pm10_0: pm_10_0
-  iaq: iaq_averaged
-  battery: battery_voltage
+  sensors:
+    - id: temperature
+      label: "Temperature"
+      unit: "°C"
+      scale_factor: 0.01
+      precision: 1
+    - id: humidity
+      label: "Humidity"
+      unit: "%"
+      scale_factor: 0.01
+      precision: 1
+    - id: pressure
+      label: "Pressure"
+      unit: "hPa"
+      scale_factor: 0.01
+      precision: 1
+    - id: co2
+      label: "CO2"
+      unit: "ppm"
+      scale_factor: 0.01
+      precision: 0
+    - id: pm_1_0
+      label: "PM1.0"
+      unit: "µg/m³"
+      scale_factor: 0.01
+      precision: 1
+    - id: pm_2_5
+      label: "PM2.5"
+      unit: "µg/m³"
+      scale_factor: 0.01
+      precision: 1
+    - id: pm_10_0
+      label: "PM10.0"
+      unit: "µg/m³"
+      scale_factor: 0.01
+      precision: 1
+    - id: iaq_averaged
+      label: "IAQ"
+      unit: ""
+      scale_factor: 0.01
+      precision: 0
+    - id: battery_voltage
+      label: "Battery"
+      unit: "V"
+      scale_factor: 0.01
+      precision: 2
 
 
