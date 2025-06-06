@@ -1,22 +1,27 @@
 package dev.feruz;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BLEAdvertiserDecoder {
+    // Cache to store the most recent readings for each sensor
+    private static final Map<String, SensorReading> sensorCache = new ConcurrentHashMap<>();
+
     public static class SensorReading {
         private final String label;
         private final double value;
         private final String unit;
         private final int precision;
+        private final long timestamp;
 
         public SensorReading(String label, double value, String unit, int precision) {
             this.label = label;
             this.value = value;
             this.unit = unit;
             this.precision = precision;
+            this.timestamp = System.currentTimeMillis();
         }
 
         public String getLabel() {
@@ -33,6 +38,10 @@ public class BLEAdvertiserDecoder {
 
         public int getPrecision() {
             return precision;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
         }
 
         public String getFormattedValue() {
@@ -154,7 +163,7 @@ public class BLEAdvertiserDecoder {
     }
 
     public static SensorData decodeManufacturerData(byte[] data) {
-        if (data == null || data.length < 4) {
+        if (data == null || data.length < 2) {
             throw new IllegalArgumentException("Invalid manufacturer data");
         }
 
@@ -163,61 +172,66 @@ public class BLEAdvertiserDecoder {
             throw new IllegalArgumentException("Invalid company ID");
         }
 
-        // Read sensor count
-        int sensorCount = ((data[2] & 0xFF) << 8) | (data[3] & 0xFF);
-        if (sensorCount <= 0 || sensorCount > 10) { // Sanity check
-            throw new IllegalArgumentException("Invalid sensor count: " + sensorCount);
+        int payloadIndex = 2; // Start after company ID
+
+        // Read single sensor data
+        if (payloadIndex + 4 >= data.length) {
+            throw new IllegalArgumentException("Incomplete sensor data");
         }
 
-        List<SensorReading> readings = new ArrayList<>();
-        int payloadIndex = 4; // Start after company ID and sensor count
+        // Read label
+        int labelLength = data[payloadIndex++] & 0xFF;
+        if (payloadIndex + labelLength > data.length) {
+            throw new IllegalArgumentException("Invalid label length");
+        }
+        String label = new String(data, payloadIndex, labelLength);
+        payloadIndex += labelLength;
 
-        // Default sensor configurations (can be overridden by actual data)
-        Map<String, SensorConfig> sensorConfigs = new HashMap<>();
-        sensorConfigs.put("Temperature", new SensorConfig("°C", 1, 0.01));
-        sensorConfigs.put("Humidity", new SensorConfig("%", 1, 0.01));
-        sensorConfigs.put("Pressure", new SensorConfig("hPa", 1, 0.01));
-        sensorConfigs.put("CO2", new SensorConfig("ppm", 0, 0.01));
-        sensorConfigs.put("PM1.0", new SensorConfig("µg/m³", 1, 0.01));
-        sensorConfigs.put("PM2.5", new SensorConfig("µg/m³", 1, 0.01));
-        sensorConfigs.put("PM10.0", new SensorConfig("µg/m³", 1, 0.01));
-        sensorConfigs.put("IAQ", new SensorConfig("", 0, 0.01));
-        sensorConfigs.put("Battery", new SensorConfig("V", 2, 0.01));
+        // Read unit
+        int unitLength = data[payloadIndex++] & 0xFF;
+        if (payloadIndex + unitLength > data.length) {
+            throw new IllegalArgumentException("Invalid unit length");
+        }
+        String unit = new String(data, payloadIndex, unitLength);
+        payloadIndex += unitLength;
 
-        // Read sensor values
-        for (int i = 0; i < sensorCount && payloadIndex + 1 < data.length; i++) {
-            int rawValue = ((data[payloadIndex] & 0xFF) << 8) | (data[payloadIndex + 1] & 0xFF);
-            payloadIndex += 2;
+        // Read precision
+        if (payloadIndex >= data.length) {
+            throw new IllegalArgumentException("Missing precision");
+        }
+        int precision = data[payloadIndex++] & 0xFF;
 
-            // Get sensor configuration (you might want to get this from the actual data)
-            String label = getSensorLabel(i);
-            SensorConfig config = sensorConfigs.getOrDefault(label, new SensorConfig("", 2, 1.0));
-            
-            double value = rawValue * config.scaleFactor;
-            readings.add(new SensorReading(label, value, config.unit, config.precision));
+        // Read value
+        if (payloadIndex + 1 >= data.length) {
+            throw new IllegalArgumentException("Missing value");
+        }
+        int rawValue = ((data[payloadIndex] & 0xFF) << 8) | (data[payloadIndex + 1] & 0xFF);
+
+        // Calculate scale factor from precision (1/10^precision)
+        double scaleFactor = 1.0;
+        for (int i = 0; i < precision; i++) {
+            scaleFactor *= 0.1;
         }
 
-        return new SensorData(readings);
+        double value = rawValue * scaleFactor;
+        SensorReading reading = new SensorReading(label, value, unit, precision);
+        
+        // Update cache with new reading
+        sensorCache.put(label, reading);
+
+        // Return all cached readings as a complete dataset
+        return new SensorData(new ArrayList<>(sensorCache.values()));
     }
 
-    private static String getSensorLabel(int index) {
-        // This should match the order of sensors in the ESPHome configuration
-        String[] labels = {
-            "Temperature", "Humidity", "Pressure", "CO2",
-            "PM1.0", "PM2.5", "PM10.0", "IAQ", "Battery"
-        };
-        return index < labels.length ? labels[index] : "Sensor" + index;
+    // Helper method to get the most recent reading for a specific sensor
+    public static SensorReading getLatestReading(String label) {
+        return sensorCache.get(label);
     }
 
-    private static class SensorConfig {
-        final String unit;
-        final int precision;
-        final double scaleFactor;
-
-        SensorConfig(String unit, int precision, double scaleFactor) {
-            this.unit = unit;
-            this.precision = precision;
-            this.scaleFactor = scaleFactor;
-        }
+    // Helper method to clear old readings (e.g., if a sensor hasn't updated in a while)
+    public static void clearOldReadings(long maxAgeMs) {
+        long now = System.currentTimeMillis();
+        sensorCache.entrySet().removeIf(entry -> 
+            (now - entry.getValue().getTimestamp()) > maxAgeMs);
     }
 } 
