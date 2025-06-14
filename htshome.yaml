@@ -12,45 +12,14 @@ esphome:
     then:
       - output.turn_on: neopixel_power
 
-# ota:
-#   platform: esphome
-#   password: !secret ota_password
-
-# wifi:
-#   ssid: !secret wifi_ssid
-#   password: !secret wifi_password
-#   fast_connect: true
-#   reboot_timeout: 0s
-#   ap:
-#     ssid: "HtsHome"
-#     password: "12345678"
-# captive_portal:
-
 logger:
   baud_rate: 115200
   
 i2c:
 
-
-# deep_sleep:
-#   run_duration: 60s
-#   sleep_duration: 4min
-
-# web_server:
-#   version: 2
-#   port: 80
-#   local: True
-#   ota: True
-#   js_include: "./v2/www.js"
-
-
 external_components:
-
   - source: "./custom_components"
     components: ["ble_advertiser"]
-
-
-
 
 bme68x_bsec2_i2c:
   # Default: 0x76 or 0x77
@@ -64,12 +33,6 @@ bme68x_bsec2_i2c:
   operating_age: 28d
   # Default: 6h
   state_save_interval: 1h
-
-# button:
-#   - platform: restart
-#     name: "Restart"
-#   - platform: safe_mode
-#     name: "Restart (Safe Mode)"
 
 sensor:
   - platform: bme68x_bsec2
