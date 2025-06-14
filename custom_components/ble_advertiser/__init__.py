@@ -4,7 +4,7 @@ from esphome.components import sensor
 from esphome.const import CONF_ID
 
 DEPENDENCIES = ['sensor']
-CODEOWNERS = ['@h2zero']
+CODEOWNERS = ["@ferdavs"]
 
 ble_advertiser_ns = cg.esphome_ns.namespace('ble_advertiser')
 BLEAdvertiser = ble_advertiser_ns.class_('BLEAdvertiser', cg.Component)
