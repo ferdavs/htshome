@@ -8,8 +8,9 @@ esphome:
   name: htshome
   libraries:
     - "h2zero/NimBLE-Arduino@1.4.1"
-
-
+  on_boot:
+    then:
+      - output.turn_on: neopixel_power
 
 # ota:
 #   platform: esphome
@@ -29,6 +30,7 @@ logger:
   baud_rate: 115200
   
 i2c:
+
 
 # deep_sleep:
 #   run_duration: 60s
@@ -99,12 +101,6 @@ sensor:
       icon: "mdi:molecule"
       filters:
         - median
-    # iaq_static:
-    #   name: "IAQ Static"
-    #   id: iaq_static
-    #   icon: "mdi:approximately-equal"
-    #   filters:
-    #     - median
   
     iaq_accuracy:
       id: iaq_accuracy
@@ -248,12 +244,24 @@ sensor:
       return averaged_iaq;
 
 ble_advertiser:
-  update_interval: 5s
-  min_interval: 1600
-  max_interval: 3200
+  update_interval: 1s
+  min_interval: 32
+  max_interval: 64
   device_name: "HTS-HOME"
   power_level: 9
   sensors:
+    - id: breath_voc
+      label: VOC
+      unit: ppm
+      precision: 1
+    - id: gas_resistance
+      label: "Gas Resistance"
+      unit: "kΩ" 
+      precision: 1
+    - id: uptime_sensor
+      label: Uptime
+      unit: s
+      precision: 0
     - id: temperature
       label: "Temperature"
       unit: "°C"
@@ -267,7 +275,7 @@ ble_advertiser:
       unit: "hPa"
       precision: 1
     - id: co2
-      label: "CO2"
+      label: "CO₂"
       unit: "ppm"
       precision: 0
     # - id: pm_1_0
@@ -286,13 +294,84 @@ ble_advertiser:
       label: "IAQ"
       unit: ""
       precision: 0
-    - id: uptime_sensor
-      label: Uptime
-      unit: s
-      precision: 0
+
     # - id: battery_voltage
     #   label: "Battery"
     #   unit: "V"
     #   precision: 2
 
+output:
+  - platform: gpio
+    pin: GPIO2
+    id: neopixel_power
 
+
+light:
+  - platform: neopixelbus
+    variant: WS2812 
+    type: GRB
+    pin: GPIO0
+    method: esp32_i2s
+    num_leds: 1
+    id: neo_pixel
+    restore_mode: ALWAYS_ON
+    default_transition_length: 0s
+
+script:
+  - id: test_led
+    mode: single
+    then:
+      - lambda: |-
+          float iaq = id(iaq_averaged).state;
+          float r = 0.0, g = 0.0, b = 1.0;  // default to blue
+          float brightness = 0.2;
+
+          if (!isnan(iaq) && iaq >= 0) {
+            // Clamp IAQ to 0-300
+            iaq = fminf(fmaxf(iaq, 0.0), 300.0);
+
+            // Map IAQ 0-300 to Hue 120 (green) to 340 (maroon)
+            float hue = 120.0 - ((iaq / 300.0) * 200.0);
+            hue = fmodf(hue + 360.0f, 360.0f);  // ensure hue is [0,360)
+
+            // HSV to RGB math
+            float sat = 1.0;
+            float val = 1.0;
+            float c = val * sat;
+            float h_prime = hue / 60.0;
+            float x = c * (1.0 - fabsf(fmodf(h_prime, 2.0) - 1.0));
+            float m = val - c;
+
+            // Precomputed RGB base cases for the 6 hue sectors
+            float rgb_cases[6][3] = {
+              {c, x, 0},
+              {x, c, 0},
+              {0, c, x},
+              {0, x, c},
+              {x, 0, c},
+              {c, 0, x}
+            };
+
+            int sector = (int)h_prime % 6;
+            r = rgb_cases[sector][0] + m;
+            g = rgb_cases[sector][1] + m;
+            b = rgb_cases[sector][2] + m;
+
+            ESP_LOGD("neopixel", "IAQ %.1f → hue %.1f → R=%.2f G=%.2f B=%.2f", iaq, hue, r, g, b);
+          } 
+
+          // Ensure power is on
+          id(neopixel_power).turn_on();
+
+          auto call = id(neo_pixel).turn_on();
+          call.set_red(r);
+          call.set_green(g);
+          call.set_blue(b);
+          call.set_brightness(brightness);
+          call.set_transition_length(0);
+          call.perform();
+
+interval:
+  - interval: 1s
+    then:
+      - script.execute: test_led

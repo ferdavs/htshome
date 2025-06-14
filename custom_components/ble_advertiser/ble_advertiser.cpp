@@ -31,7 +31,7 @@ namespace ble_advertiser {
     advertising_->setMinInterval(min_interval_); 
     advertising_->setMaxInterval(max_interval_); 
     advertising_->setAdvertisementType(BLE_HCI_ADV_TYPE_ADV_IND); 
-    
+
     // Map power level (0-9) to ESP32 BLE power levels
     esp_power_level_t power_level;
     switch (power_level_) {
@@ -124,7 +124,7 @@ namespace ble_advertiser {
     
     // Calculate payload size for single sensor
     int payload_size = 2;  // Company ID (2)
-    payload_size += 1 + sensor.label.length() + 1 + sensor.unit.length() + 1 + 2;  // Label + Unit + Precision + Value
+    payload_size += 1 + sensor.label.length() + 1 + sensor.unit.length() + 1 + 4;  // Label + Unit + Precision + Value
     
     uint8_t payload[128] = {0};
     int payload_index = 0;
@@ -147,15 +147,14 @@ namespace ble_advertiser {
     payload[payload_index++] = sensor.precision;
     
     // Calculate scale factor from precision
-    float scale_factor = 1.0f;
-    for (int i = 0; i < sensor.precision; i++) {
-      scale_factor *= 0.1f;
-    }
+    float scale_factor = pow(10, -sensor.precision);
     
     // Value
     float value = sensor.sensor->state * (1.0f / scale_factor);
-    int16_t scaled_value = (int16_t)value;
-    payload[payload_index++] = scaled_value >> 8;
+    int32_t scaled_value = (int32_t)value;
+    payload[payload_index++] = (scaled_value >> 24) & 0xFF;
+    payload[payload_index++] = (scaled_value >> 16) & 0xFF;
+    payload[payload_index++] = (scaled_value >> 8) & 0xFF;
     payload[payload_index++] = scaled_value & 0xFF;
     
     ESP_LOGD(TAG, "%s: %s", sensor.label.c_str(), format_sensor_value(sensor).c_str());
