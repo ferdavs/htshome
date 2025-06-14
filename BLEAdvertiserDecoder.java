@@ -10,7 +10,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This class provides methods to decode BLE advertisement data
+ * from the ESPHome BLE Advertiser component.
+ */
 public class BLEAdvertiserDecoder {
+
+    /**
+     * Represents a sensor reading extracted from the advertisement data.
+     */
     public static class SensorReading {
         private final String label;
         private final double value;
@@ -18,6 +26,14 @@ public class BLEAdvertiserDecoder {
         private final int precision;
         private final long timestamp;
 
+        /**
+         * Constructs a new SensorReading object.
+         *
+         * @param label     The label of the sensor.
+         * @param value     The value of the sensor.
+         * @param unit      The unit of the sensor.
+         * @param precision The precision of the sensor.
+         */
         public SensorReading(String label, double value, String unit, int precision) {
             this.label = label;
             this.value = value;
@@ -26,26 +42,56 @@ public class BLEAdvertiserDecoder {
             this.timestamp = System.currentTimeMillis();
         }
 
+        /**
+         * Returns the label of the sensor.
+         *
+         * @return The label of the sensor.
+         */
         public String getLabel() {
             return label;
         }
 
+        /**
+         * Returns the value of the sensor.
+         *
+         * @return The value of the sensor.
+         */
         public double getValue() {
             return value;
         }
 
+        /**
+         * Returns the unit of the sensor.
+         *
+         * @return The unit of the sensor.
+         */
         public String getUnit() {
             return unit;
         }
 
+        /**
+         * Returns the precision of the sensor.
+         *
+         * @return The precision of the sensor.
+         */
         public int getPrecision() {
             return precision;
         }
 
+        /**
+         * Returns the timestamp of the sensor reading.
+         *
+         * @return The timestamp of the sensor reading.
+         */
         public long getTimestamp() {
             return timestamp;
         }
 
+        /**
+         * Returns the formatted value of the sensor.
+         *
+         * @return The formatted value of the sensor.
+         */
         public String getFormattedValue() {
             if (unit.equals("s")) {
                 return formatTimeValue(value);
@@ -53,6 +99,12 @@ public class BLEAdvertiserDecoder {
             return String.format(Locale.getDefault(), "%." + precision + "f%s", value, unit);
         }
 
+        /**
+         * Formats the time value in seconds to a human-readable string.
+         *
+         * @param seconds The time value in seconds.
+         * @return The formatted time value.
+         */
         private String formatTimeValue(double seconds) {
             if (seconds < 60) {
                 return String.format(Locale.getDefault(), "%.0fs", seconds);
@@ -93,6 +145,13 @@ public class BLEAdvertiserDecoder {
         }
     }
 
+    /**
+     * Decodes the advertisement data and extracts the sensor reading.
+     *
+     * @param data The advertisement data.
+     * @return The sensor reading.
+     * @throws IllegalArgumentException If the advertisement data is invalid.
+     */
     public static SensorReading decode(byte[] data) {
         if (data == null || data.length < 4) {
             throw new IllegalArgumentException("Invalid advertisement data");
@@ -101,9 +160,11 @@ public class BLEAdvertiserDecoder {
         // Find manufacturer data in the advertisement packet
         int index = 0;
         while (index < data.length) {
+            // Read the length of the current AD structure
             int length = data[index] & 0xFF;
             if (length == 0) break;
 
+            // Read the AD type
             int type = data[index + 1] & 0xFF;
             if (type == 0xFF) { // Manufacturer Specific Data
                 // Extract manufacturer data (skip length and type bytes)
@@ -118,6 +179,13 @@ public class BLEAdvertiserDecoder {
         throw new IllegalArgumentException("No manufacturer data found in advertisement");
     }
 
+    /**
+     * Decodes the manufacturer data and extracts the sensor reading.
+     *
+     * @param data The manufacturer data.
+     * @return The sensor reading.
+     * @throws IllegalArgumentException If the manufacturer data is invalid.
+     */
     public static SensorReading decodeManufacturerData(byte[] data) {
         if (data == null || data.length < 2) {
             throw new IllegalArgumentException("Invalid manufacturer data");
