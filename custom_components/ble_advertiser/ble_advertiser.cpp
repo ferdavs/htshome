@@ -30,7 +30,7 @@ namespace ble_advertiser {
     
     advertising_->setMinInterval(min_interval_); 
     advertising_->setMaxInterval(max_interval_); 
-    advertising_->setAdvertisementType(BLE_HCI_ADV_TYPE_ADV_IND); 
+    advertising_->setConnectableMode(BLE_HCI_ADV_TYPE_ADV_IND); 
 
     // Map power level (0-9) to ESP32 BLE power levels
     esp_power_level_t power_level;

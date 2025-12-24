@@ -2,12 +2,15 @@ esp32:
   board: adafruit_feather_esp32_v2
   framework: 
     type: arduino
-
+    sdkconfig_options:
+      CONFIG_BT_ENABLED: y
+      CONFIG_BT_CLASSIC_ENABLED: y
+      CONFIG_BT_SPP_ENABLED: y
     
 esphome:
   name: htshome
   libraries:
-    - "h2zero/NimBLE-Arduino@1.4.1"
+    - "h2zero/NimBLE-Arduino@2.3.7"
   on_boot:
     then:
       - output.turn_on: neopixel_power
@@ -191,25 +194,25 @@ sensor:
       float pm_iaq = id(iaq_pm).state;
 
       // Define weights for the average
-      float weight_base = 0.4;  // Base IAQ 
-      float weight_pm = 0.6;    // PM-based IAQ
+      // float weight_base = 0.4;  // Base IAQ 
+      // float weight_pm = 0.6;    // PM-based IAQ
 
       // Calculate weighted average IAQ
-      float averaged_iaq = (weight_base * base_iaq + weight_pm * pm_iaq) / (weight_base + weight_pm);
+      //float averaged_iaq = (weight_base * base_iaq + weight_pm * pm_iaq) / (weight_base + weight_pm);
 
       // Ensure IAQ stays within the 0 to 500 range
-      if (averaged_iaq > 500) {
-        averaged_iaq = 500;
-      } else if (averaged_iaq < 0) {
-        averaged_iaq = 0;
-      }
+      //if (averaged_iaq > 500) {
+      //  averaged_iaq = 500;
+      //} else if (averaged_iaq < 0) {
+      //  averaged_iaq = 0;
+      //}
 
-      return averaged_iaq;
+      return max(base_iaq, pm_iaq);  // Use the maximum of the two values
 
 ble_advertiser:
   update_interval: 1s
-  min_interval: 32
-  max_interval: 64
+  min_interval: 128
+  max_interval: 256
   device_name: "HTS-HOME"
   power_level: 9
   sensors:
