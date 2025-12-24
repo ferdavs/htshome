@@ -22,7 +22,7 @@ i2c:
 
 external_components:
   - source: "./custom_components"
-    components: ["ble_advertiser"]
+    components: ["ble_advertiser", "pmsa003i"]
 
 bme68x_bsec2_i2c:
   # Default: 0x76 or 0x77
@@ -211,7 +211,7 @@ sensor:
 
 ble_advertiser:
   update_interval: 1s
-  min_interval: 128
+  min_interval: 32
   max_interval: 256
   device_name: "HTS-HOME"
   power_level: 9
